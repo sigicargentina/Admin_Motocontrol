@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>MotoControl · Panel de administración</title>
+<style>
+  :root {
+    --bg: #0f172a;
+    --panel: #111827;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --ok: #059669;
+    --warn: #d97706;
+    --bad: #dc2626;
+    --accent: #111827;
+    --soft: #f3f4f6;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: var(--soft);
+    color: var(--text);
+    padding-bottom: 40px;
+  }
+  header {
+    background: var(--bg);
+    color: white;
+    padding: 20px 16px 26px;
+  }
+  .header-inner {
+    max-width: 1200px;
+    margin: auto;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  header h1 { margin: 0; font-size: 21px; }
+  header p { margin: 4px 0 0; color: #cbd5e1; font-size: 13px; }
+  #refreshBtn {
+    background: #fff; color: var(--bg); border: none; border-radius: 10px;
+    padding: 10px 16px; font-weight: 800; cursor: pointer; font-size: 13px;
+  }
+  #refreshBtn:disabled { opacity: .6; cursor: default; }
+
+  main { max-width: 1200px; margin: -18px auto 0; padding: 0 16px; }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+    margin-bottom: 18px;
+  }
+  @media (max-width: 800px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
+
+  .stat-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 16px 18px;
+    box-shadow: 0 8px 24px rgba(15,23,42,.08);
+    cursor: pointer;
+    border: 2px solid transparent;
+    transition: border-color .15s ease, transform .15s ease;
+  }
+  .stat-card:hover { transform: translateY(-2px); }
+  .stat-card.active { border-color: var(--accent); }
+  .stat-card .stat-label { font-size: 12px; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+  .stat-card .stat-value { font-size: 32px; font-weight: 900; margin-top: 4px; }
+  .stat-card.total .stat-value { color: var(--accent); }
+  .stat-card.vencido .stat-value { color: var(--bad); }
+  .stat-card.proximo .stat-value { color: var(--warn); }
+  .stat-card.vigente .stat-value { color: var(--ok); }
+
+  .toolbar {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 14px;
+  }
+  #buscador {
+    flex: 1; min-width: 200px; padding: 10px 14px; border-radius: 10px;
+    border: 1px solid var(--border); font-size: 14px;
+  }
+  .badge {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: .03em;
+  }
+  .badge.vencido { background: #fee2e2; color: var(--bad); }
+  .badge.proximo { background: #fef3c7; color: var(--warn); }
+  .badge.vigente { background: #d1fae5; color: var(--ok); }
+  .badge.suspendido { background: #e5e7eb; color: #374151; }
+
+  .tabla-wrap {
+    background: var(--card); border-radius: 16px; overflow: hidden;
+    box-shadow: 0 8px 24px rgba(15,23,42,.08);
+  }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    text-align: left; padding: 12px 14px; background: #f9fafb;
+    color: var(--muted); font-size: 11px; text-transform: uppercase;
+    letter-spacing: .04em; border-bottom: 1px solid var(--border);
+  }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover { background: #fafafa; }
+  .nombre-cell strong { display: block; }
+  .nombre-cell small { color: var(--muted); }
+  .dias-cell { font-weight: 800; }
+  .accion-cell { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+  select.plan-select {
+    padding: 7px 8px; border-radius: 8px; border: 1px solid var(--border); font-size: 13px;
+  }
+  button.aplicar-btn {
+    background: var(--accent); color: #fff; border: none; border-radius: 8px;
+    padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer;
+  }
+  button.aplicar-btn:disabled { opacity: .5; cursor: default; }
+  button.suspender-btn {
+    background: #fff; color: var(--warn); border: 1px solid var(--warn); border-radius: 8px;
+    padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer;
+  }
+  button.suspender-btn.reactivar { color: var(--ok); border-color: var(--ok); }
+  button.suspender-btn:disabled { opacity: .5; cursor: default; }
+  button.eliminar-btn {
+    background: #fff; color: var(--bad); border: 1px solid var(--bad); border-radius: 8px;
+    padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer;
+  }
+  button.eliminar-btn:disabled { opacity: .5; cursor: default; }
+  .fila-acciones {
+    display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px;
+  }
+  .estado-msg { padding: 30px; text-align: center; color: var(--muted); }
+  .estado-msg.error { color: var(--bad); }
+
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,.55);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px; z-index: 1000;
+    opacity: 0; pointer-events: none; transition: opacity .15s ease;
+  }
+  .modal-overlay.abierto { opacity: 1; pointer-events: auto; }
+  .modal-box {
+    background: var(--card); border-radius: 16px; max-width: 400px; width: 100%;
+    padding: 24px; box-shadow: 0 20px 50px rgba(15,23,42,.3);
+    transform: translateY(10px) scale(.98); transition: transform .15s ease;
+  }
+  .modal-overlay.abierto .modal-box { transform: translateY(0) scale(1); }
+  .modal-icono {
+    width: 44px; height: 44px; border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; margin-bottom: 14px;
+  }
+  .modal-icono.peligro { background: #fee2e2; color: var(--bad); }
+  .modal-icono.aviso { background: #fef3c7; color: var(--warn); }
+  .modal-icono.info { background: #e0e7ff; color: var(--accent); }
+  .modal-box h3 { margin: 0 0 8px; font-size: 17px; }
+  .modal-box p { margin: 0 0 20px; font-size: 14px; color: var(--muted); line-height: 1.5; }
+  .modal-botones { display: flex; gap: 10px; justify-content: flex-end; }
+  .modal-botones button {
+    padding: 9px 16px; border-radius: 9px; font-size: 13px; font-weight: 800;
+    border: none; cursor: pointer;
+  }
+  .modal-cancelar { background: var(--soft); color: var(--text); }
+  .modal-confirmar { background: var(--accent); color: #fff; }
+  .modal-confirmar.peligro { background: var(--bad); }
+  .modal-confirmar.aviso { background: var(--warn); }
+
+  .toast-wrap {
+    position: fixed; bottom: 20px; right: 20px; z-index: 1100;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .toast {
+    background: var(--bg); color: #fff; padding: 12px 16px; border-radius: 10px;
+    font-size: 13px; box-shadow: 0 8px 24px rgba(15,23,42,.3);
+    display: flex; align-items: center; gap: 8px;
+    animation: toast-in .2s ease;
+    max-width: 320px;
+  }
+  .toast.error { background: var(--bad); }
+  @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+</style>
+</head>
+<body>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal-box">
+    <div class="modal-icono" id="modalIcono"></div>
+    <h3 id="modalTitulo"></h3>
+    <p id="modalMensaje"></p>
+    <div class="modal-botones">
+      <button class="modal-cancelar" id="modalCancelar">Cancelar</button>
+      <button class="modal-confirmar" id="modalConfirmar">Confirmar</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toastWrap"></div>
+<header>
+  <div class="header-inner">
+    <div>
+      <h1>Panel de administración · MotoControl</h1>
+      <p id="subLabel">Sincronizando usuarios...</p>
+    </div>
+    <button id="refreshBtn" onclick="cargarUsuarios()">↻ Actualizar</button>
+  </div>
+</header>
+
+<main>
+  <div class="stats-grid">
+    <div class="stat-card total active" data-filtro="todos" onclick="setFiltro('todos')">
+      <div class="stat-label">Total de usuarios</div>
+      <div class="stat-value" id="statTotal">--</div>
+    </div>
+    <div class="stat-card vencido" data-filtro="vencido" onclick="setFiltro('vencido')">
+      <div class="stat-label">Plan vencido</div>
+      <div class="stat-value" id="statVencido">--</div>
+    </div>
+    <div class="stat-card proximo" data-filtro="proximo" onclick="setFiltro('proximo')">
+      <div class="stat-label">Vence en ≤ 7 días</div>
+      <div class="stat-value" id="statProximo">--</div>
+    </div>
+    <div class="stat-card vigente" data-filtro="vigente" onclick="setFiltro('vigente')">
+      <div class="stat-label">Vigentes</div>
+      <div class="stat-value" id="statVigente">--</div>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input id="buscador" type="text" placeholder="Buscar por nombre o DNI..." oninput="renderTabla()" />
+  </div>
+
+  <div class="tabla-wrap">
+    <table id="tablaUsuarios">
+      <thead>
+        <tr>
+          <th>Usuario</th>
+          <th>Plan actual</th>
+          <th>Vence</th>
+          <th>Días restantes</th>
+          <th>Estado</th>
+          <th>Cambiar plan</th>
+        </tr>
+      </thead>
+      <tbody id="tbodyUsuarios">
+        <tr><td colspan="6" class="estado-msg">Cargando usuarios...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+  const API_URL = 'https://script.google.com/macros/s/AKfycbwjmw4nq9Zfnb5XFGJSw4FLxwnPO9Uzwh4pWZ7WPkqdOdgytswnrQLbH7rA7AIBCxaH/exec';
+  const PLANES = ['Prueba', 'Mensual', 'Semestral', 'Anual', 'Ilimitado'];
+
+  let usuarios = [];
+  let filtroActivo = 'todos';
+
+  // --- Modal de confirmación propio (reemplaza confirm() del navegador) ---
+  const ICONOS = { peligro: '⚠️', aviso: '⏸️', info: 'ℹ️' };
+
+  function confirmarModal({ titulo, mensaje, tipo = 'info', textoConfirmar = 'Confirmar' }) {
+    return new Promise(resolve => {
+      const overlay = document.getElementById('modalOverlay');
+      const icono = document.getElementById('modalIcono');
+      const btnConfirmar = document.getElementById('modalConfirmar');
+      const btnCancelar = document.getElementById('modalCancelar');
+
+      document.getElementById('modalTitulo').textContent = titulo;
+      document.getElementById('modalMensaje').textContent = mensaje;
+      icono.className = 'modal-icono ' + tipo;
+      icono.textContent = ICONOS[tipo] || ICONOS.info;
+      btnConfirmar.className = 'modal-confirmar ' + (tipo === 'peligro' ? 'peligro' : tipo === 'aviso' ? 'aviso' : '');
+      btnConfirmar.textContent = textoConfirmar;
+
+      overlay.classList.add('abierto');
+
+      function cerrar(resultado) {
+        overlay.classList.remove('abierto');
+        btnConfirmar.removeEventListener('click', onConfirmar);
+        btnCancelar.removeEventListener('click', onCancelar);
+        overlay.removeEventListener('click', onOverlay);
+        resolve(resultado);
+      }
+      function onConfirmar() { cerrar(true); }
+      function onCancelar() { cerrar(false); }
+      function onOverlay(e) { if (e.target === overlay) cerrar(false); }
+
+      btnConfirmar.addEventListener('click', onConfirmar);
+      btnCancelar.addEventListener('click', onCancelar);
+      overlay.addEventListener('click', onOverlay);
+    });
+  }
+
+  function mostrarToast(mensaje, esError = false) {
+    const wrap = document.getElementById('toastWrap');
+    const toast = document.createElement('div');
+    toast.className = 'toast' + (esError ? ' error' : '');
+    toast.textContent = (esError ? '⚠️ ' : '✅ ') + mensaje;
+    wrap.appendChild(toast);
+    setTimeout(() => toast.remove(), 4000);
+  }
+
+  async function api(action, data = {}) {
+    const res = await fetch(API_URL + '?action=' + encodeURIComponent(action), {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(data)
+    });
+    const json = await res.json();
+    if (!json.ok) throw new Error(json.error || 'Error desconocido.');
+    return json;
+  }
+
+  // Clasifica el estado de un usuario según los datos que ya calcula el backend
+  // (acceso_activo y dias_restantes) en adminListUsers.
+  function clasificar(u) {
+    const ilimitado = String(u.plan || '').toLowerCase() === 'ilimitado';
+    if (u.activo === 'NO') return 'suspendido';
+    if (!ilimitado && !u.acceso_activo) return 'vencido';
+    if (!ilimitado && u.dias_restantes !== null && u.dias_restantes <= 7) return 'proximo';
+    return 'vigente';
+  }
+
+  function formatearFecha(f) {
+    if (!f) return 'Sin vencimiento';
+    const [y, m, d] = String(f).split('-');
+    if (!y || !m || !d) return f;
+    return `${d}/${m}/${y}`;
+  }
+
+  async function cargarUsuarios() {
+    const btn = document.getElementById('refreshBtn');
+    btn.disabled = true;
+    document.getElementById('subLabel').textContent = 'Sincronizando usuarios...';
+    document.getElementById('tbodyUsuarios').innerHTML = '<tr><td colspan="6" class="estado-msg">Cargando usuarios...</td></tr>';
+    try {
+      const json = await api('adminListUsers');
+      usuarios = json.usuarios || [];
+      document.getElementById('subLabel').textContent =
+        usuarios.length + ' usuario(s) · actualizado ' + new Date().toLocaleTimeString('es-AR');
+      renderStats();
+      renderTabla();
+    } catch (err) {
+      document.getElementById('tbodyUsuarios').innerHTML =
+        '<tr><td colspan="6" class="estado-msg error">Error al cargar: ' + err.message + '</td></tr>';
+      document.getElementById('subLabel').textContent = 'Error de sincronización.';
+    } finally {
+      btn.disabled = false;
+    }
+  }
+
+  function renderStats() {
+    const total = usuarios.length;
+    const vencido = usuarios.filter(u => clasificar(u) === 'vencido').length;
+    const proximo = usuarios.filter(u => clasificar(u) === 'proximo').length;
+    const vigente = usuarios.filter(u => ['vigente'].includes(clasificar(u))).length;
+    document.getElementById('statTotal').textContent = total;
+    document.getElementById('statVencido').textContent = vencido;
+    document.getElementById('statProximo').textContent = proximo;
+    document.getElementById('statVigente').textContent = vigente;
+  }
+
+  function setFiltro(f) {
+    filtroActivo = f;
+    document.querySelectorAll('.stat-card').forEach(c => c.classList.remove('active'));
+    document.querySelector(`.stat-card[data-filtro="${f}"]`).classList.add('active');
+    renderTabla();
+  }
+
+  function renderTabla() {
+    const q = document.getElementById('buscador').value.trim().toLowerCase();
+    let lista = usuarios.slice();
+
+    if (filtroActivo !== 'todos') {
+      lista = lista.filter(u => clasificar(u) === filtroActivo);
+    }
+    if (q) {
+      lista = lista.filter(u =>
+        String(u.nombre || '').toLowerCase().includes(q) ||
+        String(u.dni || '').toLowerCase().includes(q)
+      );
+    }
+
+    const tbody = document.getElementById('tbodyUsuarios');
+    if (!lista.length) {
+      tbody.innerHTML = '<tr><td colspan="6" class="estado-msg">No hay usuarios que coincidan con este filtro.</td></tr>';
+      return;
+    }
+
+    tbody.innerHTML = lista.map(u => {
+      const estado = clasificar(u);
+      const badgeTxt = {
+        vencido: 'Vencido', proximo: 'Vence pronto', vigente: 'Vigente', suspendido: 'Suspendido'
+      }[estado];
+      const dias = u.dias_restantes === null || u.dias_restantes === undefined
+        ? (String(u.plan).toLowerCase() === 'ilimitado' ? '—' : '-')
+        : u.dias_restantes;
+
+      const opciones = PLANES.map(p =>
+        `<option value="${p}" ${String(u.plan).toLowerCase() === p.toLowerCase() ? 'selected' : ''}>${p}</option>`
+      ).join('');
+
+      const suspendido = estado === 'suspendido';
+      const nombreEscapado = String(u.nombre || '').replace(/'/g, "\\'");
+
+      return `
+        <tr data-id="${u.usuario_id}">
+          <td class="nombre-cell">
+            <strong>${u.nombre || 'Sin nombre'}</strong>
+            <small>DNI: ${u.dni}</small>
+          </td>
+          <td>${u.plan}</td>
+          <td>${formatearFecha(u.pago_hasta)}</td>
+          <td class="dias-cell">${dias}</td>
+          <td><span class="badge ${estado}">${badgeTxt}</span></td>
+          <td>
+            <div class="accion-cell">
+              <select class="plan-select" id="sel-${u.usuario_id}">${opciones}</select>
+              <button class="aplicar-btn" onclick="cambiarPlan('${u.usuario_id}')">Aplicar</button>
+            </div>
+            <div class="fila-acciones">
+              <button class="suspender-btn ${suspendido ? 'reactivar' : ''}" onclick="toggleSuspension('${u.usuario_id}', ${suspendido})">
+                ${suspendido ? 'Reactivar' : 'Detener suscripción'}
+              </button>
+              <button class="eliminar-btn" onclick="eliminarUsuario('${u.usuario_id}', '${nombreEscapado}')">Eliminar usuario</button>
+            </div>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+
+  async function cambiarPlan(usuario_id) {
+    const select = document.getElementById('sel-' + usuario_id);
+    const nuevoPlan = select.value;
+    const fila = document.querySelector(`tr[data-id="${usuario_id}"]`);
+    const boton = fila.querySelector('.aplicar-btn');
+    boton.disabled = true;
+    boton.textContent = 'Aplicando...';
+    try {
+      // adminUpdateUser recalcula pago_hasta automáticamente según el plan
+      // y no toca "activo", así que el usuario sigue con acceso al panel.
+      const json = await api('adminUpdateUser', { usuario_id, plan: nuevoPlan });
+      const actualizado = json.usuario;
+      const idx = usuarios.findIndex(u => String(u.usuario_id) === String(usuario_id));
+      if (idx >= 0) usuarios[idx] = actualizado;
+      renderStats();
+      renderTabla();
+      mostrarToast(`Plan actualizado a ${nuevoPlan}.`);
+    } catch (err) {
+      mostrarToast('No se pudo cambiar el plan: ' + err.message, true);
+      boton.disabled = false;
+      boton.textContent = 'Aplicar';
+    }
+  }
+
+  async function toggleSuspension(usuario_id, estaSuspendido) {
+    const fila = document.querySelector(`tr[data-id="${usuario_id}"]`);
+    const boton = fila.querySelector('.suspender-btn');
+    const accion = estaSuspendido ? 'reactivar' : 'suspender';
+
+    const confirmado = await confirmarModal({
+      titulo: estaSuspendido ? 'Reactivar usuario' : 'Detener suscripción',
+      mensaje: estaSuspendido
+        ? 'El usuario recuperará el acceso al panel de control inmediatamente.'
+        : 'El usuario no podrá acceder al panel de control hasta que lo reactives. Su plan y fecha de vencimiento no se modifican.',
+      tipo: 'aviso',
+      textoConfirmar: estaSuspendido ? 'Reactivar' : 'Detener suscripción'
+    });
+    if (!confirmado) return;
+
+    boton.disabled = true;
+    boton.textContent = estaSuspendido ? 'Reactivando...' : 'Deteniendo...';
+    try {
+      const json = await api('adminUpdateUser', { usuario_id, activo: estaSuspendido ? 'SI' : 'NO' });
+      const actualizado = json.usuario;
+      const idx = usuarios.findIndex(u => String(u.usuario_id) === String(usuario_id));
+      if (idx >= 0) usuarios[idx] = actualizado;
+      renderStats();
+      renderTabla();
+      mostrarToast(estaSuspendido ? 'Usuario reactivado.' : 'Suscripción detenida.');
+    } catch (err) {
+      mostrarToast('No se pudo ' + accion + ' la suscripción: ' + err.message, true);
+      boton.disabled = false;
+      boton.textContent = estaSuspendido ? 'Reactivar' : 'Detener suscripción';
+    }
+  }
+
+  async function eliminarUsuario(usuario_id, nombre) {
+    const confirmado = await confirmarModal({
+      titulo: 'Eliminar usuario',
+      mensaje: `Se eliminará definitivamente a "${nombre || 'este usuario'}" junto con sus motos, services y parámetros. Esta acción no se puede deshacer.`,
+      tipo: 'peligro',
+      textoConfirmar: 'Eliminar definitivamente'
+    });
+    if (!confirmado) return;
+
+    const fila = document.querySelector(`tr[data-id="${usuario_id}"]`);
+    const boton = fila.querySelector('.eliminar-btn');
+    boton.disabled = true;
+    boton.textContent = 'Eliminando...';
+    try {
+      await api('adminDeleteUser', { usuario_id });
+      usuarios = usuarios.filter(u => String(u.usuario_id) !== String(usuario_id));
+      renderStats();
+      renderTabla();
+      mostrarToast('Usuario eliminado.');
+    } catch (err) {
+      mostrarToast('No se pudo eliminar el usuario: ' + err.message, true);
+      boton.disabled = false;
+      boton.textContent = 'Eliminar usuario';
+    }
+  }
+
+  cargarUsuarios();
+</script>
+
+</body>
+</html>
