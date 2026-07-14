@@ -94,10 +94,12 @@
   .badge.suspendido { background: #e5e7eb; color: #374151; }
 
   .tabla-wrap {
-    background: var(--card); border-radius: 16px; overflow: hidden;
+    background: var(--card); border-radius: 16px;
     box-shadow: 0 8px 24px rgba(15,23,42,.08);
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
   }
-  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table { width: 100%; min-width: 700px; border-collapse: collapse; font-size: 13px; }
   thead th {
     text-align: left; padding: 12px 14px; background: #f9fafb;
     color: var(--muted); font-size: 11px; text-transform: uppercase;
@@ -412,6 +414,7 @@
           <td class="nombre-cell">
             <strong>${u.nombre || 'Sin nombre'}</strong>
             <small>DNI: ${u.dni}</small>
+            <small>Clave: ${u.clave || '—'}</small>
           </td>
           <td>${u.plan}</td>
           <td>${formatearFecha(u.pago_hasta)}</td>
